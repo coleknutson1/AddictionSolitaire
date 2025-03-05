@@ -1,9 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace AddictionSolitaire;
 
@@ -16,6 +14,7 @@ public class Game1 : Game
 	private Texture2D _deckSpriteSheet;
 	private SpriteFont _font;
 	private List<Card> m_deck;
+	private Card? _currentlySelectedCard;
 	public Game1()
 	{
 		_graphics = new GraphicsDeviceManager(this);
@@ -24,13 +23,15 @@ public class Game1 : Game
 		_graphics.PreferredBackBufferWidth = SCREEN_WIDTH;
 		_graphics.PreferredBackBufferHeight = SCREEN_HEIGHT;
 		_graphics.ApplyChanges();
-
 		//Load the deck into the list
+		m_deck = new List<Card>();
 		for (var rank = 0; rank <= 12; rank++)
 		{
+			int i = 0;
 			foreach (var suit in new List<string> { "SPADES", "DIAMONDS", "CLUBS", "HEARTS" })
 			{
-				Debug.WriteLine($"{rank} of {suit}");
+				m_deck.Add(new Card(new Rectangle(48 * i, 72 * rank, 48, 72), new Rectangle(32 * i, 48 * rank, 32, 48), suit, rank));
+				i++;
 			}
 		}
 	}
@@ -51,6 +52,28 @@ public class Game1 : Game
 	{
 		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
+
+		if (IsMousePressed())
+		{
+			var mouse_pos = Mouse.GetState().Position;
+			foreach(var c in m_deck)
+			{
+				if (c.m_PositionRect.Intersects(new Rectangle(mouse_pos,Point.Zero)))
+				{
+
+					_currentlySelectedCard = c;
+					break;
+				}
+			}
+		}
+		else
+		{
+			_currentlySelectedCard = null;
+		}
+		if(_currentlySelectedCard.HasValue)
+		{
+			m_deck.Remove(_currentlySelectedCard.Value);
+		}
 		base.Update(gameTime);
 	}
 
@@ -59,16 +82,13 @@ public class Game1 : Game
 		GraphicsDevice.Clear(Color.CornflowerBlue);
 		_spriteBatch.Begin();
 
-		for (var x = 0; x < 4; x++)
+		foreach (var c in m_deck)
 		{
-			for (int y = 0; y < 13; y++)
-			{
-				_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(48 * x, 72 * y, 48, 72), new Rectangle(32 * x, 48 * y, 32, 48), Color.White);
-			}
+			_spriteBatch.Draw(_deckSpriteSheet, c.m_PositionRect, c.m_SpritesheetBlitRect, Color.White);
 		}
 		_spriteBatch.End();
 		base.Draw(gameTime);
-		Window.Title = $@"{Mouse.GetState().Position.ToString()}   {IsMousePressed()}";
+		Window.Title = $@"{Mouse.GetState().Position.ToString()}";
 	}
 
 	private static bool IsMousePressed()
@@ -80,11 +100,15 @@ public class Game1 : Game
 
 public struct Card
 {
-	public Card(Rectangle r1, Rectangle r2)
+	public Card(Rectangle r1, Rectangle r2, string suit, int rank)
 	{
 		m_PositionRect = r1;
 		m_SpritesheetBlitRect = r2;
+		m_suit = suit;
+		m_rank = rank;
 	}
 	public Rectangle m_PositionRect;
 	public Rectangle m_SpritesheetBlitRect;
+	public string m_suit;
+	public int m_rank;
 }
