@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections.Generic;
 
 namespace AddictionSolitaire;
@@ -14,7 +15,10 @@ public class Game1 : Game
 	private Texture2D _deckSpriteSheet;
 	private SpriteFont _font;
 	private List<Card> m_deck;
-	private Card? _currentlySelectedCard;
+	private Card _currentlySelectedCard;
+	private MouseState _previousMouseState = Mouse.GetState();
+	private Vector2 _currentOffset;
+
 	public Game1()
 	{
 		_graphics = new GraphicsDeviceManager(this);
@@ -53,28 +57,34 @@ public class Game1 : Game
 		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
 
-		if (IsMousePressed())
+		if (IsMouseJustPressed())
 		{
 			var mouse_pos = Mouse.GetState().Position;
 			foreach(var c in m_deck)
 			{
 				if (c.m_PositionRect.Intersects(new Rectangle(mouse_pos,Point.Zero)))
 				{
-
 					_currentlySelectedCard = c;
+					_currentOffset = new Vector2(_currentlySelectedCard.m_PositionRect.Left, _currentlySelectedCard.m_PositionRect.Top) - mouse_pos.ToVector2();
 					break;
 				}
 			}
 		}
-		else
+		else if (Mouse.GetState().LeftButton == ButtonState.Released)
 		{
 			_currentlySelectedCard = null;
 		}
-		if(_currentlySelectedCard.HasValue)
+		else if(_currentlySelectedCard is not null) //Dragging card
 		{
-			m_deck.Remove(_currentlySelectedCard.Value);
+			_currentlySelectedCard.m_PositionRect = HandleCardPosition();
 		}
-		base.Update(gameTime);
+			base.Update(gameTime);
+		_previousMouseState = Mouse.GetState();
+	}
+
+	private Rectangle HandleCardPosition()
+	{
+		return new Rectangle(Mouse.GetState().Position+_currentOffset.ToPoint(), new Point(48, 72));
 	}
 
 	protected override void Draw(GameTime gameTime)
@@ -91,14 +101,14 @@ public class Game1 : Game
 		Window.Title = $@"{Mouse.GetState().Position.ToString()}";
 	}
 
-	private static bool IsMousePressed()
+	private bool IsMouseJustPressed()
 	{
-		return Mouse.GetState().LeftButton == ButtonState.Pressed;
+		return Mouse.GetState().LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released;
 	}
 }
 
 
-public struct Card
+public record Card
 {
 	public Card(Rectangle r1, Rectangle r2, string suit, int rank)
 	{
