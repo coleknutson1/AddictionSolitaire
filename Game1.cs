@@ -1,20 +1,28 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System;
 using System.Collections.Generic;
 
 namespace AddictionSolitaire;
 
 public class Game1 : Game
 {
-	private int SCREEN_WIDTH = 1920;
-	private int SCREEN_HEIGHT = 1080;
+	// Screen and card constants
+	private const int ScreenWidth = 1920;
+	private const int ScreenHeight = 1080;
+	private const float CardScale = 2.25f;
+	public static int CardWidth { get; private set; } = 32;
+	public static int CardHeight { get; private set; } = 48;
+	private readonly Vector2 TableStartPosition = new(150, 150);
+
+	// Game components
 	private GraphicsDeviceManager _graphics;
 	private SpriteBatch _spriteBatch;
 	private Texture2D _deckSpriteSheet;
 	private SpriteFont _font;
-	private List<Card> m_deck;
+
+	// Game state
+	private List<Card> _deck;
 	private Card _currentlySelectedCard;
 	private MouseState _previousMouseState = Mouse.GetState();
 	private Vector2 _currentOffset;
@@ -24,20 +32,43 @@ public class Game1 : Game
 		_graphics = new GraphicsDeviceManager(this);
 		Content.RootDirectory = "Content";
 		IsMouseVisible = true;
-		_graphics.PreferredBackBufferWidth = SCREEN_WIDTH;
-		_graphics.PreferredBackBufferHeight = SCREEN_HEIGHT;
+
+		ConfigureGraphics();
+		InitializeDeck();
+	}
+
+	private void ConfigureGraphics()
+	{
+		_graphics.PreferredBackBufferWidth = ScreenWidth;
+		_graphics.PreferredBackBufferHeight = ScreenHeight;
 		_graphics.ApplyChanges();
-		//Load the deck into the list
-		m_deck = new List<Card>();
-		for (var rank = 0; rank <= 12; rank++)
+
+		// Scale card dimensions
+		CardWidth = (int)(CardWidth * CardScale);
+		CardHeight = (int)(CardWidth * CardScale);
+	}
+
+	private void InitializeDeck()
+	{
+		_deck = new List<Card>();
+		string[] suits = { "SPADES", "DIAMONDS", "CLUBS", "HEARTS" };
+
+		for (int rank = 0; rank <= 13; rank++)
 		{
-			int i = 0;
-			foreach (var suit in new List<string> { "SPADES", "DIAMONDS", "CLUBS", "HEARTS" })
+			for (int suitIndex = 0; suitIndex < suits.Length; suitIndex++)
 			{
-				m_deck.Add(new Card(new Rectangle(48 * i, 72 * rank, 48, 72), new Rectangle(32 * i, 48 * rank, 32, 48), suit, rank));
-				i++;
+				_deck.Add(new Card(
+					new Rectangle(32 * suitIndex, 48 * rank, 32, 48),
+					suits[suitIndex],
+					rank,
+					rank == 0,
+					new Vector2(rank, suitIndex)
+				));
 			}
 		}
+
+		// Shuffle Cards
+		DeckShuffler.Shuffle(_deck);
 	}
 
 	protected override void Initialize()
@@ -54,18 +85,31 @@ public class Game1 : Game
 
 	protected override void Update(GameTime gameTime)
 	{
-		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+		// Exit condition
+		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
+			Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
 
+		HandleMouseInteraction();
+
+		base.Update(gameTime);
+		_previousMouseState = Mouse.GetState();
+	}
+
+	private void HandleMouseInteraction()
+	{
 		if (IsMouseJustPressed())
 		{
-			var mouse_pos = Mouse.GetState().Position;
-			foreach(var c in m_deck)
+			var mousePos = Mouse.GetState().Position;
+			foreach (var card in _deck)
 			{
-				if (c.m_PositionRect.Intersects(new Rectangle(mouse_pos,Point.Zero)))
+				if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)) && !card.m_isEmpty)
 				{
-					_currentlySelectedCard = c;
-					_currentOffset = new Vector2(_currentlySelectedCard.m_PositionRect.Left, _currentlySelectedCard.m_PositionRect.Top) - mouse_pos.ToVector2();
+					_currentlySelectedCard = card;
+					_currentOffset = new Vector2(
+						_currentlySelectedCard.m_PositionRect.Left,
+						_currentlySelectedCard.m_PositionRect.Top
+					) - mousePos.ToVector2();
 					break;
 				}
 			}
@@ -74,51 +118,68 @@ public class Game1 : Game
 		{
 			_currentlySelectedCard = null;
 		}
-		else if(_currentlySelectedCard is not null) //Dragging card
-		{
-			_currentlySelectedCard.m_PositionRect = HandleCardPosition();
-		}
-			base.Update(gameTime);
-		_previousMouseState = Mouse.GetState();
-	}
-
-	private Rectangle HandleCardPosition()
-	{
-		return new Rectangle(Mouse.GetState().Position+_currentOffset.ToPoint(), new Point(48, 72));
 	}
 
 	protected override void Draw(GameTime gameTime)
 	{
-		GraphicsDevice.Clear(Color.CornflowerBlue);
+		GraphicsDevice.Clear(Color.ForestGreen);
+
 		_spriteBatch.Begin();
 
-		foreach (var c in m_deck)
+		foreach (var card in _deck)
 		{
-			_spriteBatch.Draw(_deckSpriteSheet, c.m_PositionRect, c.m_SpritesheetBlitRect, Color.White);
+			_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, Color.White);
+			_spriteBatch.DrawString(
+				_font,
+				card.m_currentGridLocation.ToString(),
+				new Vector2(card.m_PositionRect.X, card.m_PositionRect.Y + 64),
+				Color.Blue
+			);
 		}
+
 		_spriteBatch.End();
 		base.Draw(gameTime);
-		Window.Title = $@"{Mouse.GetState().Position.ToString()}";
+
+		Window.Title = $"Card Game - {TableStartPosition}";
 	}
 
-	private bool IsMouseJustPressed()
+	private bool IsMouseJustPressed() =>
+		Mouse.GetState().LeftButton == ButtonState.Pressed &&
+		_previousMouseState.LeftButton == ButtonState.Released;
+
+	public record Card
 	{
-		return Mouse.GetState().LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released;
-	}
-}
+		public Card(Rectangle spritesheetRect, string suit, int rank, bool isEmpty, Vector2 gridLocation)
+		{
+			m_SpritesheetBlitRect = spritesheetRect;
+			m_suit = suit;
+			m_rank = rank;
+			m_isEmpty = isEmpty;
+			m_currentGridLocation = gridLocation;
+			UpdatePositionRect();
+		}
 
+		public void UpdateLocation(Vector2 newLocation)
+		{
+			m_currentGridLocation = newLocation;
+			UpdatePositionRect();
+		}
 
-public record Card
-{
-	public Card(Rectangle r1, Rectangle r2, string suit, int rank)
-	{
-		m_PositionRect = r1;
-		m_SpritesheetBlitRect = r2;
-		m_suit = suit;
-		m_rank = rank;
+		private void UpdatePositionRect()
+		{
+			m_PositionRect = new Rectangle(
+				Game1.CardWidth * (int)m_currentGridLocation.X,
+				Game1.CardHeight * (int)m_currentGridLocation.Y,
+				Game1.CardWidth,
+				Game1.CardHeight
+			);
+		}
+
+		public Rectangle m_PositionRect { get; private set; }
+		public bool m_isEmpty { get; }
+		public Rectangle m_SpritesheetBlitRect { get; }
+		public string m_suit { get; }
+		public int m_rank { get; }
+		public Vector2 m_currentGridLocation { get; private set; }
 	}
-	public Rectangle m_PositionRect;
-	public Rectangle m_SpritesheetBlitRect;
-	public string m_suit;
-	public int m_rank;
 }
