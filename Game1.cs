@@ -71,19 +71,19 @@ public class Game1 : Game
 		string[] suits = { "SPADES", "DIAMONDS", "CLUBS", "HEARTS" };
 		for (int suitIndex = 0; suitIndex < suits.Length; suitIndex++)
 		{
-			for (int rank = 0; rank <= 13; rank++)
+			for (int rank = 0; rank <= 12; rank++)
 			{
 
 				_deck.Add(new Card(
 					new Rectangle(32 * suitIndex, 48 * rank, 32, 48),
 					suits[suitIndex],
 					rank,
-					rank == 13,
+					rank == 12,
 					new Vector2(rank, suitIndex)
 				));
 			}
 		}
-		foreach(var mt in _deck.Where(x=>x.m_rank == 13))
+		foreach(var mt in _deck.Where(x=>x.m_rank == 12))
 		{
 			mt.m_rank = 99;
 		}
@@ -191,7 +191,7 @@ public class Game1 : Game
 				if (_currentlySelectedCard.m_isEmpty)
 				{
 					//If in first column, we should not follow this logic.
-					if (_deck.IndexOf(_currentlySelectedCard) % 14 == 0)
+					if (_deck.IndexOf(_currentlySelectedCard) % 13 == 0)
 						break;
 					var _card_before_currently_selected = _deck[_deck.IndexOf(_currentlySelectedCard) - 1];
 					_currentlyHighlightedCard = _deck.FirstOrDefault(x => x.m_rank == _card_before_currently_selected.m_rank + 1 && x.m_suit == _card_before_currently_selected.m_suit);
