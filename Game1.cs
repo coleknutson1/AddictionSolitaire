@@ -4,6 +4,7 @@
 
 using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System.Collections.Generic;
@@ -21,11 +22,12 @@ public class Game1 : Game
 	public static int CardHeight { get; private set; } = 48;
 	private readonly Vector2 TableStartPosition = new(150, 150);
 
-	// Game components
+	// Game components and content to load
 	private GraphicsDeviceManager _graphics;
 	private SpriteBatch _spriteBatch;
 	private Texture2D _deckSpriteSheet;
 	private SpriteFont _font;
+	private SoundEffect _cardFlick;
 
 	// Game state
 	private List<Card> _deck;
@@ -35,6 +37,12 @@ public class Game1 : Game
 
 	//Initialize FPS Class
 	private FrameCounter _frameCounter = new FrameCounter();
+
+	//Card strobe vars
+	private int _i_strobe = 0;
+	private bool _strobe_on = true;
+	private const int LENGTH_OF_STROBE = 5; //frames
+	private const int LENGTH_OF_STROBE_MAX = LENGTH_OF_STROBE * 2; //reset
 
 	public Game1()
 	{
@@ -93,13 +101,11 @@ public class Game1 : Game
 		_spriteBatch = new SpriteBatch(GraphicsDevice);
 		_deckSpriteSheet = Content.Load<Texture2D>("deck");
 		_font = Content.Load<SpriteFont>("font");
+		_cardFlick = Content.Load<SoundEffect>("flick");
 	}
 
 	private void PlaceCorrectCardAtSelectedEmptySpot()
 	{
-		// Return if in first slot of row
-		if (_deck.IndexOf(_currentlySelectedCard) % 14 == 0) { return; }
-
 		// Get the index of currently selected and swap card.
 		var _cs_index = _deck.IndexOf(_currentlySelectedCard);
 		var _sc_index = _deck.IndexOf(_currentlyHighlightedCard);
@@ -112,7 +118,7 @@ public class Game1 : Game
 		var _temp_isEmpty = _currentlySelectedCard.m_isEmpty;
 
 		//Play sound of updating
-
+		_cardFlick.Play();
 		_deck[_cs_index].UpdateRankAndSuit(_currentlyHighlightedCard.m_rank, _currentlyHighlightedCard.m_suit, _currentlyHighlightedCard.m_SpritesheetBlitRect, _currentlyHighlightedCard.m_currentGridLocation, _currentlyHighlightedCard.m_isEmpty);
 		_deck[_sc_index].UpdateRankAndSuit(_temp_rank, _temp_suit, _temp_spritesheetBlitRect, _temp_gridLocation, _temp_isEmpty);
 	}
@@ -127,9 +133,10 @@ public class Game1 : Game
 
 	protected override void Update(GameTime gameTime)
 	{
+		HandleStrobe();
 		//We need to brute force check on which card is hovered over for highlighting the matching card spot
 		//Needs optimization. n=52
-		_currentlySelectedCard = null;
+		_currentlySelectedCard = _currentlyHighlightedCard = null;
 		HandleMouseHighlightingAndLogic();
 
 		//Handle the mouse interactions
@@ -145,6 +152,25 @@ public class Game1 : Game
 
 		base.Update(gameTime);
 		_previousMouseState = Mouse.GetState();
+	}
+
+	private void HandleStrobe()
+	{
+		if (_currentlyHighlightedCard == null)
+		{
+			_i_strobe = 0;
+			return;
+		}
+		_i_strobe++;
+		if (_i_strobe == LENGTH_OF_STROBE)
+		{
+			_strobe_on = false;
+		}
+		if (_i_strobe == LENGTH_OF_STROBE_MAX)
+		{
+			_strobe_on = true;
+			_i_strobe = 0;
+		}
 	}
 
 	/// <summary>
@@ -202,9 +228,9 @@ public class Game1 : Game
 		{
 
 			// Hint highlighting.
-			if (card == _currentlyHighlightedCard)
+			if (card == _currentlyHighlightedCard && _strobe_on)
 			{
-				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, new Color(new Vector4(221, 245, 66, .5f)));
+				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, new Color(new Vector4(221, 100, 66, .5f)));
 			}
 			else
 			{

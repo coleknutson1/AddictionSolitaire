@@ -13,12 +13,6 @@
 
 #---------------------------------- Content ---------------------------------#
 
-#begin coin-flip-shimmer-85750.mp3
-/importer:Mp3Importer
-/processor:SongProcessor
-/processorParam:Quality=Best
-/build:coin-flip-shimmer-85750.mp3;flick.mp3
-
 #begin deck.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -30,6 +24,12 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:deck.png
+
+#begin flick.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:flick.wav
 
 #begin Font.spritefont
 /importer:FontDescriptionImporter
