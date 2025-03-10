@@ -1,7 +1,12 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections.Generic;
+using System.Data.Common;
+using System.Diagnostics;
+using System.Linq;
+using System.Xml.Linq;
 
 namespace AddictionSolitaire;
 
@@ -26,6 +31,10 @@ public class Game1 : Game
 	private Card _currentlySelectedCard;
 	private MouseState _previousMouseState = Mouse.GetState();
 	private Vector2 _currentOffset;
+	private Card _currentlyHighlightedCard;
+
+	//Initialize FPS Class
+	private FrameCounter _frameCounter = new FrameCounter();
 
 	public Game1()
 	{
@@ -52,16 +61,16 @@ public class Game1 : Game
 	{
 		_deck = new List<Card>();
 		string[] suits = { "SPADES", "DIAMONDS", "CLUBS", "HEARTS" };
-
-		for (int rank = 0; rank <= 13; rank++)
+		for (int suitIndex = 0; suitIndex < suits.Length; suitIndex++)
 		{
-			for (int suitIndex = 0; suitIndex < suits.Length; suitIndex++)
+			for (int rank = 0; rank <= 13; rank++)
 			{
+
 				_deck.Add(new Card(
 					new Rectangle(32 * suitIndex, 48 * rank, 32, 48),
 					suits[suitIndex],
 					rank,
-					rank == 0,
+					rank == 13,
 					new Vector2(rank, suitIndex)
 				));
 			}
@@ -83,41 +92,91 @@ public class Game1 : Game
 		_font = Content.Load<SpriteFont>("font");
 	}
 
+	private void PlaceCorrectCardAtSelectedEmptySpot()
+	{
+		// Return if in first slot of row
+		if (_deck.IndexOf(_currentlySelectedCard) % 14 == 0) { return; }
+
+		// Card before (cb) current empty spot
+		var _cb_index = _deck.IndexOf(_currentlySelectedCard) - 1;
+		if (_cb_index < 0)
+			return; // Just do nothing as they were need to pick a two (IMPROVEMENT: unless they are down to the last two?)
+
+		// Get card before (cb) and swap card.
+		var _cb = _deck[_cb_index];
+
+		// Swap Card (sc)
+		var _sc = _deck.FirstOrDefault(x => x.m_suit == _cb.m_suit && x.m_rank == _cb.m_rank + 1);
+
+		if (_sc == null) //If empty precedes the current selected empty
+			return;
+
+		// Get the index of currently selected and swap card.
+		var _cs_index = _deck.IndexOf(_currentlySelectedCard);
+		var _sc_index = _deck.IndexOf(_sc);
+
+		// The two cards need to exchange rank/suit values but retain their index as that is how we sort.
+		var _temp_rank = _currentlySelectedCard.m_rank;
+		var _temp_suit = _currentlySelectedCard.m_suit;
+		var _temp_spritesheetBlitRect = _currentlySelectedCard.m_SpritesheetBlitRect;
+		var _temp_gridLocation = _currentlySelectedCard.m_currentGridLocation;
+		var _temp_isEmpty = _currentlySelectedCard.m_isEmpty;
+
+		_deck[_cs_index].UpdateRankAndSuit(_sc.m_rank, _sc.m_suit, _sc.m_SpritesheetBlitRect, _sc.m_currentGridLocation, _sc.m_isEmpty);
+		_deck[_sc_index].UpdateRankAndSuit(_temp_rank, _temp_suit, _temp_spritesheetBlitRect, _temp_gridLocation, _temp_isEmpty);
+	}
+
+	private bool IsMouseJustPressed() =>
+		Mouse.GetState().LeftButton == ButtonState.Pressed &&
+		_previousMouseState.LeftButton == ButtonState.Released;
+
 	protected override void Update(GameTime gameTime)
 	{
-		// Exit condition
+		//We need to brute force check on which card is hovered over for highlighting the matching card spot
+		//Needs optimization. n=52
+		_currentlySelectedCard = null;
+		var mousePos = Mouse.GetState().Position;
+		foreach (var card in _deck)
+		{
+			if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)))
+			{
+				_currentlySelectedCard = card;
+				_currentOffset = new Vector2(
+					_currentlySelectedCard.m_PositionRect.Left,
+					_currentlySelectedCard.m_PositionRect.Top
+				) - mousePos.ToVector2();
+
+				//Get the index of the card that is 1 lower and of the same suit than our currently selected. Plus one as that is a valid spot for it.
+				var _index_of_valid_card_move = _deck.IndexOf(
+					_deck.FirstOrDefault(x => x.m_suit == _currentlySelectedCard.m_suit
+					&& x.m_rank == _currentlySelectedCard.m_rank - 1)) + 1;
+
+				//If it would be an out of bounds, just break prematurely
+				if (_index_of_valid_card_move >= _deck.Count)
+					break;
+
+				//Immediately find the slot that swap card that corresponds to currently selected.
+				var _cardSlotForValidCardMove = _deck[_index_of_valid_card_move];
+
+				//If the valid card move is empty, then we know it's definitely a valid move to be made.
+				_currentlyHighlightedCard = _cardSlotForValidCardMove.m_isEmpty ? _cardSlotForValidCardMove : null;
+				break;
+			}
+		}
+
+		//Handle the mouse interactions
+		if (IsMouseJustPressed())
+		{
+			PlaceCorrectCardAtSelectedEmptySpot();
+		}
+
+		// Exit Game
 		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
 			Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
 
-		HandleMouseInteraction();
-
 		base.Update(gameTime);
 		_previousMouseState = Mouse.GetState();
-	}
-
-	private void HandleMouseInteraction()
-	{
-		if (IsMouseJustPressed())
-		{
-			var mousePos = Mouse.GetState().Position;
-			foreach (var card in _deck)
-			{
-				if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)) && !card.m_isEmpty)
-				{
-					_currentlySelectedCard = card;
-					_currentOffset = new Vector2(
-						_currentlySelectedCard.m_PositionRect.Left,
-						_currentlySelectedCard.m_PositionRect.Top
-					) - mousePos.ToVector2();
-					break;
-				}
-			}
-		}
-		else if (Mouse.GetState().LeftButton == ButtonState.Released)
-		{
-			_currentlySelectedCard = null;
-		}
 	}
 
 	protected override void Draw(GameTime gameTime)
@@ -125,61 +184,36 @@ public class Game1 : Game
 		GraphicsDevice.Clear(Color.ForestGreen);
 
 		_spriteBatch.Begin();
+		var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+		_frameCounter.Update(deltaTime);
+
+		var fps = string.Format("FPS: {0}", _frameCounter.AverageFramesPerSecond);
 		foreach (var card in _deck)
 		{
-			_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, Color.White);
-			_spriteBatch.DrawString(
-				_font,
-				card.m_currentGridLocation.ToString(),
-				new Vector2(card.m_PositionRect.X, card.m_PositionRect.Y + 64),
-				Color.Blue
-			);
+			if (card == _currentlyHighlightedCard)
+			{
+				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, new Color(new Vector4(221, 245, 66, .5f)));
+			}
+			else
+			{
+				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, Color.White);
+			}
+			//_spriteBatch.DrawString(
+			//	_font,
+			//	_deck.IndexOf(card).ToString(),
+			//	new Vector2(card.m_PositionRect.X + 10, card.m_PositionRect.Y + 64),
+			//	Color.Blue
+			//);
 		}
 
 		_spriteBatch.End();
 		base.Draw(gameTime);
 
-		Window.Title = $"Card Game - {TableStartPosition}";
+		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
+		Window.Title = $"Card Game -  - {fps}";
 	}
 
-	private bool IsMouseJustPressed() =>
-		Mouse.GetState().LeftButton == ButtonState.Pressed &&
-		_previousMouseState.LeftButton == ButtonState.Released;
 
-	public record Card
-	{
-		public Card(Rectangle spritesheetRect, string suit, int rank, bool isEmpty, Vector2 gridLocation)
-		{
-			m_SpritesheetBlitRect = spritesheetRect;
-			m_suit = suit;
-			m_rank = rank;
-			m_isEmpty = isEmpty;
-			m_currentGridLocation = gridLocation;
-			UpdatePositionRect();
-		}
 
-		public void UpdateLocation(Vector2 newLocation)
-		{
-			m_currentGridLocation = newLocation;
-			UpdatePositionRect();
-		}
-
-		private void UpdatePositionRect()
-		{
-			m_PositionRect = new Rectangle(
-				Game1.CardWidth * (int)m_currentGridLocation.X,
-				Game1.CardHeight * (int)m_currentGridLocation.Y,
-				Game1.CardWidth,
-				Game1.CardHeight
-			);
-		}
-
-		public Rectangle m_PositionRect { get; private set; }
-		public bool m_isEmpty { get; }
-		public Rectangle m_SpritesheetBlitRect { get; }
-		public string m_suit { get; }
-		public int m_rank { get; }
-		public Vector2 m_currentGridLocation { get; private set; }
-	}
 }
