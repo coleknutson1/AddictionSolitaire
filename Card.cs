@@ -21,9 +21,10 @@ public record Card
 
 	private void UpdatePositionRect()
 	{
+		const int padding = 5; // Adjust the padding value as needed
 		m_PositionRect = new Rectangle(
-			Game1.CardWidth * (int)m_currentGridLocation.X,
-			Game1.CardHeight * (int)m_currentGridLocation.Y,
+			(Game1.CardWidth + padding) * (int)m_currentGridLocation.X,
+			(Game1.CardHeight + padding) * (int)m_currentGridLocation.Y,
 			Game1.CardWidth,
 			Game1.CardHeight
 		);

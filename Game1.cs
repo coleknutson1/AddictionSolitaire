@@ -2,7 +2,6 @@
 //Switch to Hashsets
 #endregion
 
-using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
@@ -15,9 +14,10 @@ namespace AddictionSolitaire;
 public class Game1 : Game
 {
 	// Screen and card constants
-	private const int ScreenWidth = 1920;
-	private const int ScreenHeight = 1080;
-	private const float CardScale = 2.25f;
+	private const int SCREEN_WIDTH = 640;
+	private const int SCREEN_HEIGHT = 360;
+	private const float CARD_SCALE = 2f;
+	private const int SCREEN_SCALE = 2;
 	public static int CardWidth { get; private set; } = 32;
 	public static int CardHeight { get; private set; } = 48;
 	private readonly Vector2 TableStartPosition = new(150, 150);
@@ -56,13 +56,14 @@ public class Game1 : Game
 
 	private void ConfigureGraphics()
 	{
-		_graphics.PreferredBackBufferWidth = ScreenWidth;
-		_graphics.PreferredBackBufferHeight = ScreenHeight;
+		// In your game initialization
+		_graphics.PreferredBackBufferWidth = SCREEN_WIDTH * SCREEN_SCALE;
+		_graphics.PreferredBackBufferHeight = SCREEN_HEIGHT * SCREEN_SCALE;
 		_graphics.ApplyChanges();
 
 		// Scale card dimensions
-		CardWidth = (int)(CardWidth * CardScale);
-		CardHeight = (int)(CardWidth * CardScale);
+		CardWidth = (int)(CardWidth * CARD_SCALE);
+		CardHeight = (int)(CardWidth * CARD_SCALE);
 	}
 
 	private void InitializeDeck()
@@ -83,7 +84,7 @@ public class Game1 : Game
 				));
 			}
 		}
-		foreach(var mt in _deck.Where(x=>x.m_rank == 12))
+		foreach (var mt in _deck.Where(x => x.m_rank == 12))
 		{
 			mt.m_rank = 99;
 		}
@@ -184,7 +185,7 @@ public class Game1 : Game
 			if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)))
 			{
 				_currentlySelectedCard = card;
-				
+
 				//TODO: If they have multiple first rank slots open for aces we need to allow them to pick their ace.
 
 				//If the hover over an empty slot, check the card before, then get rank+1 and same suit of that card.
@@ -195,6 +196,13 @@ public class Game1 : Game
 						break;
 					var _card_before_currently_selected = _deck[_deck.IndexOf(_currentlySelectedCard) - 1];
 					_currentlyHighlightedCard = _deck.FirstOrDefault(x => x.m_rank == _card_before_currently_selected.m_rank + 1 && x.m_suit == _card_before_currently_selected.m_suit);
+					break;
+				}
+
+				//If a 2, then check to see if there is an open first column slot
+				else if (_currentlySelectedCard.m_rank == 0)
+				{
+					_currentlyHighlightedCard = _deck.Where((x, index) => x.m_isEmpty && index % 13 == 0)?.FirstOrDefault();
 					break;
 				}
 
@@ -218,7 +226,15 @@ public class Game1 : Game
 	{
 		GraphicsDevice.Clear(Color.ForestGreen);
 
-		_spriteBatch.Begin();
+		// In your Draw method
+		_spriteBatch.Begin(
+			SpriteSortMode.Deferred,
+			BlendState.AlphaBlend,
+			SamplerState.PointClamp, // This is the key for pixel-perfect scaling
+			null,
+			null,
+			null,
+			null); // Optional scaling matrix
 		var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 		_frameCounter.Update(deltaTime);
 		var fps = string.Format("FPS: {0}", _frameCounter.AverageFramesPerSecond);
@@ -226,7 +242,6 @@ public class Game1 : Game
 		// Draw out every card.
 		foreach (var card in _deck)
 		{
-
 			// Hint highlighting.
 			if (card == _currentlyHighlightedCard && _strobe_on)
 			{
@@ -242,6 +257,6 @@ public class Game1 : Game
 		base.Draw(gameTime);
 
 		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
-		Window.Title = $"Card Game -  - {fps}";
+		Window.Title = $"Card Game - {_currentlySelectedCard} - {fps}";
 	}
 }
