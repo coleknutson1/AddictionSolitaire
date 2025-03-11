@@ -10,20 +10,19 @@ public class DeckShuffler
 	public static void Shuffle(List<Card> deck)
 	{
 		int n = deck.Count;
-		while (n > 1)
+		for (int i = 0; i < n - 1; i++)
 		{
-			n--;
-			int k = rng.Next(n + 1);
+			int k = rng.Next(i, n);
 
 			// Swap the cards
 			Card tempCard = deck[k];
-			deck[k] = deck[n];
-			deck[n] = tempCard;
+			deck[k] = deck[i];
+			deck[i] = tempCard;
 
 			// Update the grid locations of the swapped cards
 			Vector2 tempLocation = deck[k].m_currentGridLocation;
-			deck[k].UpdateLocation(deck[n].m_currentGridLocation);
-			deck[n].UpdateLocation(tempLocation);
+			deck[k].UpdateLocation(deck[i].m_currentGridLocation);
+			deck[i].UpdateLocation(tempLocation);
 		}
 	}
 }

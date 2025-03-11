@@ -22,9 +22,11 @@ public record Card
 	private void UpdatePositionRect()
 	{
 		const int padding = 5; // Adjust the padding value as needed
+		const int offsetX = 170; // Adjust the offset value as needed
+		const int offsetY = 100; // Adjust the offset value as needed
 		m_PositionRect = new Rectangle(
-			(Game1.CardWidth + padding) * (int)m_currentGridLocation.X,
-			(Game1.CardHeight + padding) * (int)m_currentGridLocation.Y,
+			(Game1.CardWidth + padding) * (int)m_currentGridLocation.X + offsetX,
+			(Game1.CardHeight + padding) * (int)m_currentGridLocation.Y + offsetY,
 			Game1.CardWidth,
 			Game1.CardHeight
 		);

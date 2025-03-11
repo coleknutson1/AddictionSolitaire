@@ -28,11 +28,13 @@ public class Game1 : Game
 	private Texture2D _deckSpriteSheet;
 	private SpriteFont _font;
 	private SoundEffect _cardFlick;
+	private Texture2D _shuffleButton;
 
 	// Game state
 	private List<Card> _deck;
 	private Card _currentlySelectedCard;
 	private MouseState _previousMouseState = Mouse.GetState();
+	private KeyboardState _previousKeyboardState = Keyboard.GetState();
 	private Card _currentlyHighlightedCard;
 
 	//Initialize FPS Class
@@ -41,6 +43,7 @@ public class Game1 : Game
 	//Card strobe vars
 	private int _i_strobe = 0;
 	private bool _strobe_on = true;
+	private Rectangle _shuffleButtonRectangle;
 	private const int LENGTH_OF_STROBE = 5; //frames
 	private const int LENGTH_OF_STROBE_MAX = LENGTH_OF_STROBE * 2; //reset
 
@@ -49,7 +52,7 @@ public class Game1 : Game
 		_graphics = new GraphicsDeviceManager(this);
 		Content.RootDirectory = "Content";
 		IsMouseVisible = true;
-
+		_shuffleButtonRectangle = new Rectangle(new Point(0, 0), new Point(128, 128));
 		ConfigureGraphics();
 		InitializeDeck();
 	}
@@ -92,18 +95,6 @@ public class Game1 : Game
 		DeckShuffler.Shuffle(_deck);
 	}
 
-	protected override void Initialize()
-	{
-		base.Initialize();
-	}
-
-	protected override void LoadContent()
-	{
-		_spriteBatch = new SpriteBatch(GraphicsDevice);
-		_deckSpriteSheet = Content.Load<Texture2D>("deck");
-		_font = Content.Load<SpriteFont>("font");
-		_cardFlick = Content.Load<SoundEffect>("flick");
-	}
 
 	private void PlaceCorrectCardAtSelectedEmptySpot()
 	{
@@ -132,28 +123,6 @@ public class Game1 : Game
 		Mouse.GetState().LeftButton == ButtonState.Pressed &&
 		_previousMouseState.LeftButton == ButtonState.Released;
 
-	protected override void Update(GameTime gameTime)
-	{
-		HandleStrobe();
-		//We need to brute force check on which card is hovered over for highlighting the matching card spot
-		//Needs optimization. n=52
-		_currentlySelectedCard = _currentlyHighlightedCard = null;
-		HandleMouseHighlightingAndLogic();
-
-		//Handle the mouse interactions
-		if (_currentlyHighlightedCard != null && _currentlySelectedCard != null && IsMouseJustPressed())
-		{
-			PlaceCorrectCardAtSelectedEmptySpot();
-		}
-
-		// Exit Game
-		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
-			Keyboard.GetState().IsKeyDown(Keys.Escape))
-			Exit();
-
-		base.Update(gameTime);
-		_previousMouseState = Mouse.GetState();
-	}
 
 	private void HandleStrobe()
 	{
@@ -180,6 +149,7 @@ public class Game1 : Game
 	private void HandleMouseHighlightingAndLogic()
 	{
 		var mousePos = Mouse.GetState().Position;
+
 		foreach (var card in _deck)
 		{
 			if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)))
@@ -222,6 +192,49 @@ public class Game1 : Game
 		}
 	}
 
+	protected override void Initialize()
+	{
+		base.Initialize();
+	}
+
+	protected override void LoadContent()
+	{
+		_spriteBatch = new SpriteBatch(GraphicsDevice);
+		_deckSpriteSheet = Content.Load<Texture2D>("deck");
+		_font = Content.Load<SpriteFont>("font");
+		_cardFlick = Content.Load<SoundEffect>("flick");
+		_shuffleButton = Content.Load<Texture2D>("shuffle");
+	}
+
+	protected override void Update(GameTime gameTime)
+	{
+		HandleFullscreen();
+		HandleStrobe();
+		//We need to brute force check on which card is hovered over for highlighting the matching card spot
+		//Needs optimization. n=52
+		_currentlySelectedCard = _currentlyHighlightedCard = null;
+		HandleMouseHighlightingAndLogic();
+
+		//Handle the mouse interactions
+		if (_currentlyHighlightedCard != null && _currentlySelectedCard != null && IsMouseJustPressed())
+		{
+			PlaceCorrectCardAtSelectedEmptySpot();
+		}
+		else if(IsMouseJustPressed() && (_shuffleButtonRectangle.Intersects(new Rectangle(Mouse.GetState().Position, Point.Zero))))
+		{
+			DeckShuffler.Shuffle(_deck);
+		}
+
+		// Exit Game
+		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
+			Keyboard.GetState().IsKeyDown(Keys.Escape))
+			Exit();
+
+		base.Update(gameTime);
+		_previousMouseState = Mouse.GetState();
+		_previousKeyboardState = Keyboard.GetState();
+	}
+
 	protected override void Draw(GameTime gameTime)
 	{
 		GraphicsDevice.Clear(Color.ForestGreen);
@@ -253,10 +266,22 @@ public class Game1 : Game
 			}
 		}
 
+		_spriteBatch.Draw(_shuffleButton, _shuffleButtonRectangle, Color.White);
 		_spriteBatch.End();
 		base.Draw(gameTime);
 
 		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
 		Window.Title = $"Card Game - {_currentlySelectedCard} - {fps}";
 	}
+	private void HandleFullscreen()
+	{
+		var keyboardState = Keyboard.GetState();
+		if (keyboardState.IsKeyDown(Keys.F11) && _previousKeyboardState.IsKeyUp(Keys.F11))
+		{
+			_graphics.IsFullScreen = !_graphics.IsFullScreen;
+			_graphics.ApplyChanges();
+		}
+		_previousKeyboardState = keyboardState;
+	}
+
 }
