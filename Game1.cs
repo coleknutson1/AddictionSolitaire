@@ -18,6 +18,7 @@ public class Game1 : Game
 	private const int SCREEN_HEIGHT = 360;
 	private const float CARD_SCALE = 2f;
 	private const int SCREEN_SCALE = 2;
+	private Rectangle BLACK_RECT = new Rectangle(64, 576, 32, 48);
 	public static int CardWidth { get; private set; } = 32;
 	public static int CardHeight { get; private set; } = 48;
 	private readonly Vector2 TableStartPosition = new(150, 150);
@@ -244,7 +245,7 @@ public class Game1 : Game
 		}
 
 		//If they right click a card, set it as the pocket card and set its slot to empty.
-		else if (_currentlySelectedCard != null && IsMouseJustPressed(false))
+		else if (IsMouseJustPressed(false))
 		{
 			PlaceCardInPocketSlot();
 		}
@@ -278,17 +279,19 @@ public class Game1 : Game
 	{
 		//Retrieve index of currently selected and bail if null or if there is already a card in _pocketCard.
 		var indexOfCurrentlySelectedCard = _deck.FindIndex(x => x == _currentlySelectedCard);
-		if (indexOfCurrentlySelectedCard == -1 || !_pocketCard.m_isEmpty)
+		if (indexOfCurrentlySelectedCard == -1 || _currentlySelectedCard.m_isEmpty || _pocketCard != null)
 		{
 			return false;
 		}
 
 		//Place currently selected into pocket slot. Then pick currently selected from deck and empty it.
-		_pocketCard = _currentlySelectedCard;
+		_pocketCard = new Card();
+		_pocketCard.UpdateRankAndSuit(_currentlySelectedCard.m_rank, _currentlySelectedCard.m_suit, _currentlySelectedCard.m_SpritesheetBlitRect, _currentlySelectedCard.m_currentGridLocation, _currentlySelectedCard.m_isEmpty);
+
 		var _temp_location = new Vector2(_pocketCard.m_PositionRect.X, _pocketCard.m_PositionRect.Y);
-		var _temp_blank_spritesheet_rect = new Rectangle(64, 576, 32, 48);
+		
 		_deck[indexOfCurrentlySelectedCard]
-			.UpdateRankAndSuit(99, null, _temp_blank_spritesheet_rect, _temp_location, false);
+			.UpdateRankAndSuit(99, null, BLACK_RECT, _temp_location, false);
 
 
 		return true;
@@ -324,7 +327,15 @@ public class Game1 : Game
 			}
 		}
 
-		_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight), _deck.ElementAt(0).m_SpritesheetBlitRect, Color.White);
+		//If pocket card is empty, draw black quad with count of pocket uses left in it.
+		if (_pocketCard != null)
+		{
+			_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight), _pocketCard.m_SpritesheetBlitRect, Color.White);
+		}
+		else
+		{
+			_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight), BLACK_RECT, Color.White);
+		}
 
 		_spriteBatch.Draw(_shuffleButton, _shuffleButtonRectangle, Color.White);
 		_spriteBatch.End();
