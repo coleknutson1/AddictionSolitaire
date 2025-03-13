@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -50,6 +51,7 @@ public class Game1 : Game
 	private const int LENGTH_OF_STROBE = 5; //frames
 	private const int LENGTH_OF_STROBE_MAX = LENGTH_OF_STROBE * 2; //reset
 
+	#region Initialization
 	public Game1()
 	{
 		_graphics = new GraphicsDeviceManager(this);
@@ -96,6 +98,23 @@ public class Game1 : Game
 		DeckShuffler.Shuffle(_deck);
 	}
 
+	protected override void Initialize()
+	{
+		base.Initialize();
+	}
+
+	protected override void LoadContent()
+	{
+		_spriteBatch = new SpriteBatch(GraphicsDevice);
+		_deckSpriteSheet = Content.Load<Texture2D>("deck");
+		_font = Content.Load<SpriteFont>("font");
+		_cardFlick = Content.Load<SoundEffect>("flick");
+		_shuffleButton = Content.Load<Texture2D>("shuffle");
+		_background = Content.Load<Texture2D>("tabletop");
+	}
+
+	#endregion
+
 	private bool PlaceCorrectCardAtSelectedEmptySpot()
 	{
 		if (_currentlySelectedCard == null || _currentlyHighlightedCard == null)
@@ -130,6 +149,116 @@ public class Game1 : Game
 		!isLeftPressed && Mouse.GetState().RightButton == ButtonState.Pressed &&
 		_previousMouseState.RightButton == ButtonState.Released);
 
+	
+	/// <summary>
+	/// See if we are hovering over a card and, if applicable, show a valid spot for that card.
+	/// </summary>]
+	private bool HandleMouseHighlightingAndLogic()
+	{
+		var mousePos = Mouse.GetState().Position;
+
+		//Loop over deck in order to find the card with the mouse over it. TODO: Optimize
+		foreach (var card in _deck)
+		{
+			//If we are hovering over a card
+			if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)))
+			{
+				//Update global variable
+				_currentlySelectedCard = card;
+
+				//Hovering over an empty slot, therefore highlight the valid card slot (if applicable).
+				if (_currentlySelectedCard.m_isEmpty)
+				{
+					if (_deck.IndexOf(_currentlySelectedCard) % 13 == 0)
+						return false;
+
+					var _card_before_currently_selected = _deck[_deck.IndexOf(_currentlySelectedCard) - 1];
+					_currentlyHighlightedCard = _deck.FirstOrDefault(x => x.m_rank == _card_before_currently_selected.m_rank + 1 && x.m_suit == _card_before_currently_selected.m_suit);
+					return true;
+				}
+
+				//If they are hovering over a 2, show them the first available left-most column (if applicable).
+				else if (_currentlySelectedCard.m_rank == 0)
+				{
+					_currentlyHighlightedCard = _deck.Where((x, index) => x.m_isEmpty && index % 13 == 0)?.FirstOrDefault();
+					return true;
+				}
+
+				//Otherwise search for an available slot for currently selected card.
+				var _index_of_valid_card_move = _deck.IndexOf(
+								_deck.FirstOrDefault(x => x.m_suit == _currentlySelectedCard.m_suit
+								&& x.m_rank == _currentlySelectedCard.m_rank - 1)) + 1;
+
+				//Don't go out of bounds!
+				if (_index_of_valid_card_move >= _deck.Count)
+					return false;
+
+				_currentlyHighlightedCard = _deck[_index_of_valid_card_move].m_isEmpty ? _deck[_index_of_valid_card_move] : null;
+				return true;
+			}
+		}
+
+
+		return false;
+	}
+
+	private void HandleFullscreen()
+	{
+		var keyboardState = Keyboard.GetState();
+		if (keyboardState.IsKeyDown(Keys.F11) && _previousKeyboardState.IsKeyUp(Keys.F11))
+		{
+			_graphics.IsFullScreen = !_graphics.IsFullScreen;
+			_graphics.ApplyChanges();
+		}
+		_previousKeyboardState = keyboardState;
+	}
+
+
+	#region PocketCard
+	/// <summary>
+	/// Place the card we are right-clicking into the pocket slot.
+	/// </summary>
+	/// <returns>Boolean value evaluating if we actually placed a card in the pocket slot.</returns>
+	/// 
+	private bool PlaceCardInPocketSlot()
+	{
+		//Retrieve index of currently selected and bail if null or if there is already a card in _pocketCard.
+		var indexOfCurrentlySelectedCard = _deck.FindIndex(x => x == _currentlySelectedCard);
+		if (indexOfCurrentlySelectedCard == -1 || _currentlySelectedCard.m_isEmpty || _pocketCard != null)
+		{
+			return false;
+		}
+
+		//Place currently selected into pocket slot. Then pick currently selected from deck and empty it.
+		_pocketCard = new Card();
+		_pocketCard.UpdateRankAndSuit(_currentlySelectedCard.m_rank, _currentlySelectedCard.m_suit, _currentlySelectedCard.m_SpritesheetBlitRect, _currentlySelectedCard.m_currentGridLocation, _currentlySelectedCard.m_isEmpty);
+		_pocketCard.m_PositionRect = GetPocketCardRectangle();
+		var _temp_location = new Vector2(_pocketCard.m_PositionRect.X, _pocketCard.m_PositionRect.Y);
+
+		_deck[indexOfCurrentlySelectedCard]
+			.UpdateRankAndSuit(99, null, BLACK_RECT, _temp_location, true);
+
+
+		return true;
+	}
+	
+	private bool HandlePocketCardClick()
+	{
+		//If pocket card is null or if we aren't clicking it, return false.
+		if (_pocketCard == null || !_pocketCard.m_PositionRect.Intersects(new Rectangle(Mouse.GetState().Position, Point.Zero)))
+		{
+			return false;
+		}
+		
+		//If we have a highlighted card, then we know we can place it there, so handle that.
+		if(_currentlyHighlightedCard != null)
+		{
+
+		}
+
+		return true;
+	}
+
 	private void HandleStrobe()
 	{
 		if (_currentlyHighlightedCard == null)
@@ -149,97 +278,23 @@ public class Game1 : Game
 		}
 	}
 
-	/// <summary>
-	/// See if we are hovering over a card and, if applicable, show a valid spot for that card.
-	/// </summary>]
-	private bool HandleMouseHighlightingAndLogic()
+	private static Rectangle GetPocketCardRectangle()
 	{
-		var mousePos = Mouse.GetState().Position;
-		var deckList = _deck.ToList();
-
-		//Loop over deck in order to find the card with the mouse over it. TODO: Optimize
-		foreach (var card in deckList)
-		{
-
-			//If we are hovering over a card
-			if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)))
-			{
-				//Update global variable
-				_currentlySelectedCard = card;
-
-				//Hovering over an empty slot, therefore highlight the valid card slot (if applicable).
-				if (_currentlySelectedCard.m_isEmpty)
-				{
-					if (deckList.IndexOf(_currentlySelectedCard) % 13 == 0)
-						return false;
-
-					var _card_before_currently_selected = deckList[deckList.IndexOf(_currentlySelectedCard) - 1];
-					_currentlyHighlightedCard = deckList.FirstOrDefault(x => x.m_rank == _card_before_currently_selected.m_rank + 1 && x.m_suit == _card_before_currently_selected.m_suit);
-					return true;
-				}
-
-				//If they are hovering over a 2, show them the first available left-most column (if applicable).
-				else if (_currentlySelectedCard.m_rank == 0)
-				{
-					_currentlyHighlightedCard = deckList.Where((x, index) => x.m_isEmpty && index % 13 == 0)?.FirstOrDefault();
-					return true;
-				}
-
-				//Otherwise search for an available slot for currently selected card.
-				var _index_of_valid_card_move = deckList.IndexOf(
-								deckList.FirstOrDefault(x => x.m_suit == _currentlySelectedCard.m_suit
-								&& x.m_rank == _currentlySelectedCard.m_rank - 1)) + 1;
-
-				//Don't go out of bounds!
-				if (_index_of_valid_card_move >= deckList.Count)
-					return false;
-
-
-				_currentlyHighlightedCard = deckList[_index_of_valid_card_move].m_isEmpty ? deckList[_index_of_valid_card_move] : null;
-				return true;
-			}
-		}
-
-		return false;
+		return new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight);
 	}
+	#endregion
 
-	private void HandleFullscreen()
-	{
-		var keyboardState = Keyboard.GetState();
-		if (keyboardState.IsKeyDown(Keys.F11) && _previousKeyboardState.IsKeyUp(Keys.F11))
-		{
-			_graphics.IsFullScreen = !_graphics.IsFullScreen;
-			_graphics.ApplyChanges();
-		}
-		_previousKeyboardState = keyboardState;
-	}
-
-	protected override void Initialize()
-	{
-		base.Initialize();
-	}
-
-	protected override void LoadContent()
-	{
-		_spriteBatch = new SpriteBatch(GraphicsDevice);
-		_deckSpriteSheet = Content.Load<Texture2D>("deck");
-		_font = Content.Load<SpriteFont>("font");
-		_cardFlick = Content.Load<SoundEffect>("flick");
-		_shuffleButton = Content.Load<Texture2D>("shuffle");
-		_background = Content.Load<Texture2D>("tabletop");
-	}
-
+	#region Update/Draw
 	protected override void Update(GameTime gameTime)
 	{
 		HandleFullscreen();
 		HandleStrobe();
-		//We need to brute force check on which card is hovered over for highlighting the matching card spot
-		//Needs optimization. n=52
+
 		_currentlySelectedCard = _currentlyHighlightedCard = null;
 		HandleMouseHighlightingAndLogic();
 
-		//Handle the mouse interactions
-		if (_currentlyHighlightedCard != null && _currentlySelectedCard != null && IsMouseJustPressed())
+		//Check if mouse is pressed and if they are clicking the pocket slot. If they aren't, see if they are clicking a valid card.
+		if (IsMouseJustPressed() && !HandlePocketCardClick())
 		{
 			PlaceCorrectCardAtSelectedEmptySpot();
 		}
@@ -250,15 +305,10 @@ public class Game1 : Game
 			PlaceCardInPocketSlot();
 		}
 
+		//Handle shuffle.
 		else if (IsMouseJustPressed() && (_shuffleButtonRectangle.Intersects(new Rectangle(Mouse.GetState().Position, Point.Zero))))
 		{
 			DeckShuffler.Shuffle(_deck);
-		}
-
-		//DEBUG: If space, then set DeckShuffler.firstRun to True
-		if (Keyboard.GetState().IsKeyDown(Keys.Space))
-		{
-			DeckShuffler.firstRun = true;
 		}
 
 		// Exit Game
@@ -271,31 +321,6 @@ public class Game1 : Game
 		_previousKeyboardState = Keyboard.GetState();
 	}
 
-	/// <summary>
-	/// Place the card we are right-clicking into the pocket slot.
-	/// </summary>
-	/// <returns>Boolean value evaluating if we actually placed a card in the pocket slot.</returns>
-	private bool PlaceCardInPocketSlot()
-	{
-		//Retrieve index of currently selected and bail if null or if there is already a card in _pocketCard.
-		var indexOfCurrentlySelectedCard = _deck.FindIndex(x => x == _currentlySelectedCard);
-		if (indexOfCurrentlySelectedCard == -1 || _currentlySelectedCard.m_isEmpty || _pocketCard != null)
-		{
-			return false;
-		}
-
-		//Place currently selected into pocket slot. Then pick currently selected from deck and empty it.
-		_pocketCard = new Card();
-		_pocketCard.UpdateRankAndSuit(_currentlySelectedCard.m_rank, _currentlySelectedCard.m_suit, _currentlySelectedCard.m_SpritesheetBlitRect, _currentlySelectedCard.m_currentGridLocation, _currentlySelectedCard.m_isEmpty);
-
-		var _temp_location = new Vector2(_pocketCard.m_PositionRect.X, _pocketCard.m_PositionRect.Y);
-		
-		_deck[indexOfCurrentlySelectedCard]
-			.UpdateRankAndSuit(99, null, BLACK_RECT, _temp_location, false);
-
-
-		return true;
-	}
 
 	protected override void Draw(GameTime gameTime)
 	{
@@ -330,11 +355,11 @@ public class Game1 : Game
 		//If pocket card is empty, draw black quad with count of pocket uses left in it.
 		if (_pocketCard != null)
 		{
-			_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight), _pocketCard.m_SpritesheetBlitRect, Color.White);
+			_spriteBatch.Draw(_deckSpriteSheet, GetPocketCardRectangle(), _pocketCard.m_SpritesheetBlitRect, Color.White);
 		}
 		else
 		{
-			_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight), BLACK_RECT, Color.White);
+			_spriteBatch.Draw(_deckSpriteSheet, GetPocketCardRectangle(), BLACK_RECT, Color.White);
 		}
 
 		_spriteBatch.Draw(_shuffleButton, _shuffleButtonRectangle, Color.White);
@@ -344,5 +369,5 @@ public class Game1 : Game
 		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
 		Window.Title = $"Addiction Solitaire - FPS: {((int)_frameCounter.AverageFramesPerSecond)}";
 	}
-
+	#endregion
 }
