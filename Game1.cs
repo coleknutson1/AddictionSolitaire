@@ -128,6 +128,7 @@ public class Game1 : Game
 		_previousMouseState.LeftButton == ButtonState.Released) || (
 		!isLeftPressed && Mouse.GetState().RightButton == ButtonState.Pressed &&
 		_previousMouseState.RightButton == ButtonState.Released);
+
 	private void HandleStrobe()
 	{
 		if (_currentlyHighlightedCard == null)
@@ -149,7 +150,7 @@ public class Game1 : Game
 
 	/// <summary>
 	/// See if we are hovering over a card and, if applicable, show a valid spot for that card.
-	/// </summary>
+	/// </summary>]
 	private bool HandleMouseHighlightingAndLogic()
 	{
 		var mousePos = Mouse.GetState().Position;
@@ -199,6 +200,17 @@ public class Game1 : Game
 		}
 
 		return false;
+	}
+
+	private void HandleFullscreen()
+	{
+		var keyboardState = Keyboard.GetState();
+		if (keyboardState.IsKeyDown(Keys.F11) && _previousKeyboardState.IsKeyUp(Keys.F11))
+		{
+			_graphics.IsFullScreen = !_graphics.IsFullScreen;
+			_graphics.ApplyChanges();
+		}
+		_previousKeyboardState = keyboardState;
 	}
 
 	protected override void Initialize()
@@ -264,26 +276,20 @@ public class Game1 : Game
 	/// <returns>Boolean value evaluating if we actually placed a card in the pocket slot.</returns>
 	private bool PlaceCardInPocketSlot()
 	{
-		if (_currentlySelectedCard == null)
-			return false;
-
-		//Create a list of the deck off of the list in order to modify values.
-		var _tempDeck = _deck.ToList();
-		var cardToUpdate = _tempDeck.FirstOrDefault(x => x.m_rank == _currentlySelectedCard.m_rank && x.m_suit == _currentlySelectedCard.m_suit);
-
-		if (cardToUpdate == null)
-			return false;
-		_pocketCard = _currentlySelectedCard;
-
-		cardToUpdate.UpdateRankAndSuit(99, null, _pocketCard.m_SpritesheetBlitRect,
-			new Vector2(_pocketCard.m_PositionRect.X, _pocketCard.m_PositionRect.Y), false);
-
-		// Clear out the list and repopulate with list
-		_deck.Clear();
-		foreach (var card in _tempDeck)
+		//Retrieve index of currently selected and bail if null or if there is already a card in _pocketCard.
+		var indexOfCurrentlySelectedCard = _deck.FindIndex(x => x == _currentlySelectedCard);
+		if (indexOfCurrentlySelectedCard == -1 || !_pocketCard.m_isEmpty)
 		{
-			_deck.Add(card);
+			return false;
 		}
+
+		//Place currently selected into pocket slot. Then pick currently selected from deck and empty it.
+		_pocketCard = _currentlySelectedCard;
+		var _temp_location = new Vector2(_pocketCard.m_PositionRect.X, _pocketCard.m_PositionRect.Y);
+		var _temp_blank_spritesheet_rect = new Rectangle(64, 576, 32, 48);
+		_deck[indexOfCurrentlySelectedCard]
+			.UpdateRankAndSuit(99, null, _temp_blank_spritesheet_rect, _temp_location, false);
+
 
 		return true;
 	}
@@ -326,16 +332,6 @@ public class Game1 : Game
 
 		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
 		Window.Title = $"Addiction Solitaire - FPS: {((int)_frameCounter.AverageFramesPerSecond)}";
-	}
-	private void HandleFullscreen()
-	{
-		var keyboardState = Keyboard.GetState();
-		if (keyboardState.IsKeyDown(Keys.F11) && _previousKeyboardState.IsKeyUp(Keys.F11))
-		{
-			_graphics.IsFullScreen = !_graphics.IsFullScreen;
-			_graphics.ApplyChanges();
-		}
-		_previousKeyboardState = keyboardState;
 	}
 
 }

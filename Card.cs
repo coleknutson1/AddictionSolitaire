@@ -12,11 +12,6 @@ public record Card
 		m_currentGridLocation = gridLocation;
 		UpdatePositionRect();
 	}
-
-	public Card()
-	{
-	}
-
 	public void UpdateLocation(Vector2 newLocation)
 	{
 		m_currentGridLocation = newLocation;
