@@ -29,6 +29,7 @@ public class Game1 : Game
 	private SpriteFont _font;
 	private SoundEffect _cardFlick;
 	private Texture2D _shuffleButton;
+	private Texture2D _background;
 
 	// Game state
 	private List<Card> _deck;
@@ -95,7 +96,6 @@ public class Game1 : Game
 		DeckShuffler.Shuffle(_deck);
 	}
 
-
 	private void PlaceCorrectCardAtSelectedEmptySpot()
 	{
 		// Get the index of currently selected and swap card.
@@ -122,8 +122,6 @@ public class Game1 : Game
 	private bool IsMouseJustPressed() =>
 		Mouse.GetState().LeftButton == ButtonState.Pressed &&
 		_previousMouseState.LeftButton == ButtonState.Released;
-
-
 	private void HandleStrobe()
 	{
 		if (_currentlyHighlightedCard == null)
@@ -204,6 +202,7 @@ public class Game1 : Game
 		_font = Content.Load<SpriteFont>("font");
 		_cardFlick = Content.Load<SoundEffect>("flick");
 		_shuffleButton = Content.Load<Texture2D>("shuffle");
+		_background = Content.Load<Texture2D>("tabletop");
 	}
 
 	protected override void Update(GameTime gameTime)
@@ -244,7 +243,6 @@ public class Game1 : Game
 	protected override void Draw(GameTime gameTime)
 	{
 		GraphicsDevice.Clear(Color.ForestGreen);
-
 		// In your Draw method
 		_spriteBatch.Begin(
 			SpriteSortMode.Deferred,
@@ -254,9 +252,9 @@ public class Game1 : Game
 			null,
 			null,
 			null); // Optional scaling matrix
+		_spriteBatch.Draw(_background, new Rectangle(0, 0, SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE), Color.White);
 		var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 		_frameCounter.Update(deltaTime);
-		var fps = string.Format("FPS: {0}", _frameCounter.AverageFramesPerSecond);
 
 		// Draw out every card.
 		foreach (var card in _deck)
@@ -269,7 +267,6 @@ public class Game1 : Game
 			else
 			{
 				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, Color.White);
-				_spriteBatch.DrawString(_font, $"{_deck.IndexOf(card)}", new Vector2(card.m_PositionRect.X + 25, card.m_PositionRect.Y + 25), Color.Red);
 			}
 		}
 
@@ -278,8 +275,9 @@ public class Game1 : Game
 		base.Draw(gameTime);
 
 		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
-		Window.Title = $"Card Game - {_currentlySelectedCard} - {fps} - {DeckShuffler.firstRun}";
+		Window.Title = $"Addiction Solitaire - FPS: {((int)_frameCounter.AverageFramesPerSecond)}";
 	}
+
 	private void HandleFullscreen()
 	{
 		var keyboardState = Keyboard.GetState();
