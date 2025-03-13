@@ -115,44 +115,7 @@ public class Game1 : Game
 
 	#endregion
 
-	private bool PlaceCorrectCardAtSelectedEmptySpot()
-	{
-		if (_currentlySelectedCard == null || _currentlyHighlightedCard == null)
-			return false;
-
-		// Get the currently selected and highlighted cards.
-		var selectedCard = _currentlySelectedCard;
-		var highlightedCard = _currentlyHighlightedCard;
-
-		// The two cards need to exchange rank/suit values but retain their index as that is how we sort.
-		var _temp_rank = selectedCard.m_rank;
-		var _temp_suit = selectedCard.m_suit;
-		var _temp_spritesheetBlitRect = selectedCard.m_SpritesheetBlitRect;
-		var _temp_gridLocation = selectedCard.m_currentGridLocation;
-		var _temp_isEmpty = selectedCard.m_isEmpty;
-
-		// Play sound of updating
-		_cardFlick.Play();
-		selectedCard.UpdateRankAndSuit(highlightedCard.m_rank, highlightedCard.m_suit, highlightedCard.m_SpritesheetBlitRect, highlightedCard.m_currentGridLocation, highlightedCard.m_isEmpty);
-		highlightedCard.UpdateRankAndSuit(_temp_rank, _temp_suit, _temp_spritesheetBlitRect, _temp_gridLocation, _temp_isEmpty);
-
-		return true;
-	}
-
-	/// <summary>
-	/// Helper function to check if the latest mouse state is different from previous cycle's.
-	/// </summary>
-	/// <returns></returns>
-	private bool IsMouseJustPressed(bool isLeftPressed = true) =>
-		(isLeftPressed && Mouse.GetState().LeftButton == ButtonState.Pressed &&
-		_previousMouseState.LeftButton == ButtonState.Released) || (
-		!isLeftPressed && Mouse.GetState().RightButton == ButtonState.Pressed &&
-		_previousMouseState.RightButton == ButtonState.Released);
-
-	
-	/// <summary>
-	/// See if we are hovering over a card and, if applicable, show a valid spot for that card.
-	/// </summary>]
+	#region InputHandlers
 	private bool HandleMouseHighlightingAndLogic()
 	{
 		var mousePos = Mouse.GetState().Position;
@@ -202,6 +165,37 @@ public class Game1 : Game
 		return false;
 	}
 
+	private bool PlaceCorrectCardAtSelectedEmptySpot()
+	{
+		if (_currentlySelectedCard == null || _currentlyHighlightedCard == null)
+			return false;
+
+		// Get the currently selected and highlighted cards.
+		var selectedCard = _currentlySelectedCard;
+		var highlightedCard = _currentlyHighlightedCard;
+
+		// The two cards need to exchange rank/suit values but retain their index as that is how we sort.
+		var _temp_rank = selectedCard.m_rank;
+		var _temp_suit = selectedCard.m_suit;
+		var _temp_spritesheetBlitRect = selectedCard.m_SpritesheetBlitRect;
+		var _temp_gridLocation = selectedCard.m_currentGridLocation;
+		var _temp_isEmpty = selectedCard.m_isEmpty;
+
+		// Play sound of updating
+		_cardFlick.Play();
+		selectedCard.UpdateRankAndSuit(highlightedCard.m_rank, highlightedCard.m_suit, highlightedCard.m_SpritesheetBlitRect, highlightedCard.m_currentGridLocation, highlightedCard.m_isEmpty);
+		highlightedCard.UpdateRankAndSuit(_temp_rank, _temp_suit, _temp_spritesheetBlitRect, _temp_gridLocation, _temp_isEmpty);
+
+		return true;
+	}
+
+
+	private bool IsMouseJustPressed(bool isLeftPressed = true) =>
+	(isLeftPressed && Mouse.GetState().LeftButton == ButtonState.Pressed &&
+	_previousMouseState.LeftButton == ButtonState.Released) || (
+	!isLeftPressed && Mouse.GetState().RightButton == ButtonState.Pressed &&
+	_previousMouseState.RightButton == ButtonState.Released);
+
 	private void HandleFullscreen()
 	{
 		var keyboardState = Keyboard.GetState();
@@ -212,7 +206,7 @@ public class Game1 : Game
 		}
 		_previousKeyboardState = keyboardState;
 	}
-
+	#endregion
 
 	#region PocketCard
 	/// <summary>
@@ -253,7 +247,8 @@ public class Game1 : Game
 		//If we have a highlighted card, then we know we can place it there, so handle that.
 		if(_currentlyHighlightedCard != null)
 		{
-
+			_currentlyHighlightedCard.UpdateRankAndSuit(_pocketCard.m_rank, _pocketCard.m_suit, _pocketCard.m_SpritesheetBlitRect, _currentlyHighlightedCard.m_currentGridLocation, false);
+			_pocketCard = new Card();
 		}
 
 		return true;
