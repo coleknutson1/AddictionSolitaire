@@ -32,7 +32,7 @@ public class Game1 : Game
 	private Texture2D _background;
 
 	// Game state
-	private List<Card> _deck;
+	private HashSet<Card> _deck;
 	private Card _currentlySelectedCard;
 	private MouseState _previousMouseState = Mouse.GetState();
 	private KeyboardState _previousKeyboardState = Keyboard.GetState();
@@ -72,13 +72,12 @@ public class Game1 : Game
 
 	private void InitializeDeck()
 	{
-		_deck = new List<Card>();
+		_deck = new HashSet<Card>();
 		string[] suits = { "SPADES", "DIAMONDS", "CLUBS", "HEARTS" };
 		for (int suitIndex = 0; suitIndex < suits.Length; suitIndex++)
 		{
 			for (int rank = 0; rank <= 12; rank++)
 			{
-
 				_deck.Add(new Card(
 					new Rectangle(32 * suitIndex, 48 * rank, 32, 48),
 					suits[suitIndex],
@@ -92,27 +91,26 @@ public class Game1 : Game
 		{
 			mt.m_rank = 99;
 		}
-		// Shuffle Cards
 		DeckShuffler.Shuffle(_deck);
 	}
 
 	private void PlaceCorrectCardAtSelectedEmptySpot()
 	{
-		// Get the index of currently selected and swap card.
-		var _cs_index = _deck.IndexOf(_currentlySelectedCard);
-		var _sc_index = _deck.IndexOf(_currentlyHighlightedCard);
+		// Get the currently selected and highlighted cards.
+		var selectedCard = _currentlySelectedCard;
+		var highlightedCard = _currentlyHighlightedCard;
 
 		// The two cards need to exchange rank/suit values but retain their index as that is how we sort.
-		var _temp_rank = _currentlySelectedCard.m_rank;
-		var _temp_suit = _currentlySelectedCard.m_suit;
-		var _temp_spritesheetBlitRect = _currentlySelectedCard.m_SpritesheetBlitRect;
-		var _temp_gridLocation = _currentlySelectedCard.m_currentGridLocation;
-		var _temp_isEmpty = _currentlySelectedCard.m_isEmpty;
+		var _temp_rank = selectedCard.m_rank;
+		var _temp_suit = selectedCard.m_suit;
+		var _temp_spritesheetBlitRect = selectedCard.m_SpritesheetBlitRect;
+		var _temp_gridLocation = selectedCard.m_currentGridLocation;
+		var _temp_isEmpty = selectedCard.m_isEmpty;
 
 		//Play sound of updating
 		_cardFlick.Play();
-		_deck[_cs_index].UpdateRankAndSuit(_currentlyHighlightedCard.m_rank, _currentlyHighlightedCard.m_suit, _currentlyHighlightedCard.m_SpritesheetBlitRect, _currentlyHighlightedCard.m_currentGridLocation, _currentlyHighlightedCard.m_isEmpty);
-		_deck[_sc_index].UpdateRankAndSuit(_temp_rank, _temp_suit, _temp_spritesheetBlitRect, _temp_gridLocation, _temp_isEmpty);
+		selectedCard.UpdateRankAndSuit(highlightedCard.m_rank, highlightedCard.m_suit, highlightedCard.m_SpritesheetBlitRect, highlightedCard.m_currentGridLocation, highlightedCard.m_isEmpty);
+		highlightedCard.UpdateRankAndSuit(_temp_rank, _temp_suit, _temp_spritesheetBlitRect, _temp_gridLocation, _temp_isEmpty);
 	}
 
 	/// <summary>
@@ -147,44 +145,36 @@ public class Game1 : Game
 	private void HandleMouseHighlightingAndLogic()
 	{
 		var mousePos = Mouse.GetState().Position;
+		var deckList = _deck.ToList();
 
-		foreach (var card in _deck)
+		foreach (var card in deckList)
 		{
 			if (card.m_PositionRect.Intersects(new Rectangle(mousePos, Point.Zero)))
 			{
 				_currentlySelectedCard = card;
 
-				//TODO: If they have multiple first rank slots open for aces we need to allow them to pick their ace.
-
-				//If the hover over an empty slot, check the card before, then get rank+1 and same suit of that card.
 				if (_currentlySelectedCard.m_isEmpty)
 				{
-					//If in first column, we should not follow this logic.
-					if (_deck.IndexOf(_currentlySelectedCard) % 13 == 0)
+					if (deckList.IndexOf(_currentlySelectedCard) % 13 == 0)
 						break;
-					var _card_before_currently_selected = _deck[_deck.IndexOf(_currentlySelectedCard) - 1];
-					_currentlyHighlightedCard = _deck.FirstOrDefault(x => x.m_rank == _card_before_currently_selected.m_rank + 1 && x.m_suit == _card_before_currently_selected.m_suit);
+					var _card_before_currently_selected = deckList[deckList.IndexOf(_currentlySelectedCard) - 1];
+					_currentlyHighlightedCard = deckList.FirstOrDefault(x => x.m_rank == _card_before_currently_selected.m_rank + 1 && x.m_suit == _card_before_currently_selected.m_suit);
 					break;
 				}
-
-				//If a 2, then check to see if there is an open first column slot
 				else if (_currentlySelectedCard.m_rank == 0)
 				{
-					_currentlyHighlightedCard = _deck.Where((x, index) => x.m_isEmpty && index % 13 == 0)?.FirstOrDefault();
+					_currentlyHighlightedCard = deckList.Where((x, index) => x.m_isEmpty && index % 13 == 0)?.FirstOrDefault();
 					break;
 				}
 
-				//Get the index of the card that is 1 lower and of the same suit than our currently selected. Plus one as that is a valid spot for it.
-				var _index_of_valid_card_move = _deck.IndexOf(
-					_deck.FirstOrDefault(x => x.m_suit == _currentlySelectedCard.m_suit
-					&& x.m_rank == _currentlySelectedCard.m_rank - 1)) + 1;
+				var _index_of_valid_card_move = deckList.IndexOf(
+								deckList.FirstOrDefault(x => x.m_suit == _currentlySelectedCard.m_suit
+								&& x.m_rank == _currentlySelectedCard.m_rank - 1)) + 1;
 
-				//If it would be an out of bounds, just break prematurely
-				if (_index_of_valid_card_move >= _deck.Count)
+				if (_index_of_valid_card_move >= deckList.Count)
 					break;
 
-				//Immediately find the slot that swap card that corresponds to currently selected IF it's empty.
-				_currentlyHighlightedCard = _deck[_index_of_valid_card_move].m_isEmpty ? _deck[_index_of_valid_card_move] : null;
+				_currentlyHighlightedCard = deckList[_index_of_valid_card_move].m_isEmpty ? deckList[_index_of_valid_card_move] : null;
 				break;
 			}
 		}
