@@ -225,6 +225,12 @@ public class Game1 : Game
 			DeckShuffler.Shuffle(_deck);
 		}
 
+		//DEBUG: If space, then set DeckShuffler.firstRun to True
+		if (Keyboard.GetState().IsKeyDown(Keys.Space))
+		{
+			DeckShuffler.firstRun = true;
+		}
+
 		// Exit Game
 		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
 			Keyboard.GetState().IsKeyDown(Keys.Escape))
@@ -263,6 +269,7 @@ public class Game1 : Game
 			else
 			{
 				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, Color.White);
+				_spriteBatch.DrawString(_font, $"{_deck.IndexOf(card)}", new Vector2(card.m_PositionRect.X + 25, card.m_PositionRect.Y + 25), Color.Red);
 			}
 		}
 
@@ -271,7 +278,7 @@ public class Game1 : Game
 		base.Draw(gameTime);
 
 		var currentlyHighlightedText = _currentlyHighlightedCard == null ? "" : $"{_currentlyHighlightedCard.m_suit}:{_currentlyHighlightedCard.m_rank}";
-		Window.Title = $"Card Game - {_currentlySelectedCard} - {fps}";
+		Window.Title = $"Card Game - {_currentlySelectedCard} - {fps} - {DeckShuffler.firstRun}";
 	}
 	private void HandleFullscreen()
 	{
