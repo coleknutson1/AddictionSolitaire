@@ -260,6 +260,8 @@ public class Game1 : Game
 			}
 		}
 
+		_spriteBatch.Draw(_deckSpriteSheet, new Rectangle(SCREEN_WIDTH*SCREEN_SCALE-100, SCREEN_HEIGHT*SCREEN_SCALE-300, Game1.CardWidth, Game1.CardHeight), _deck.ElementAt(0).m_SpritesheetBlitRect, Color.White);
+
 		_spriteBatch.Draw(_shuffleButton, _shuffleButtonRectangle, Color.White);
 		_spriteBatch.End();
 		base.Draw(gameTime);
