@@ -13,6 +13,10 @@ public record Card
 		UpdatePositionRect();
 	}
 
+	public Card()
+	{
+	}
+
 	public void UpdateLocation(Vector2 newLocation)
 	{
 		m_currentGridLocation = newLocation;
@@ -39,6 +43,7 @@ public record Card
 	public int m_rank { get; set; }
 	public Vector2 m_currentGridLocation { get; set; }
 
+	public bool inPocket { get; set; } = false;
 	public void UpdateRankAndSuit(int newRank, string newSuit, Rectangle newSpritesheetBlit, Vector2 currentGridLocation, bool temp_isEmpty)
 	{
 		m_rank = newRank;
