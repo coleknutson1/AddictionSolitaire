@@ -39,7 +39,6 @@ public class Game1 : Game
 	private MouseState _previousMouseState = Mouse.GetState();
 	private KeyboardState _previousKeyboardState = Keyboard.GetState();
 	private Card _currentlyHighlightedCard;
-	private Card _pocketCard;
 
 	//Initialize FPS Class
 	private FrameCounter _frameCounter = new FrameCounter();
@@ -189,7 +188,6 @@ public class Game1 : Game
 		return true;
 	}
 
-
 	private bool IsMouseJustPressed(bool isLeftPressed = true) =>
 	(isLeftPressed && Mouse.GetState().LeftButton == ButtonState.Pressed &&
 	_previousMouseState.LeftButton == ButtonState.Released) || (
@@ -207,52 +205,6 @@ public class Game1 : Game
 		_previousKeyboardState = keyboardState;
 	}
 	#endregion
-
-	#region PocketCard
-	/// <summary>
-	/// Place the card we are right-clicking into the pocket slot.
-	/// </summary>
-	/// <returns>Boolean value evaluating if we actually placed a card in the pocket slot.</returns>
-	/// 
-	private bool PlaceCardInPocketSlot()
-	{
-		//Retrieve index of currently selected and bail if null or if there is already a card in _pocketCard.
-		var indexOfCurrentlySelectedCard = _deck.FindIndex(x => x == _currentlySelectedCard);
-		if (indexOfCurrentlySelectedCard == -1 || _currentlySelectedCard.m_isEmpty || _pocketCard != null)
-		{
-			return false;
-		}
-
-		//Place currently selected into pocket slot. Then pick currently selected from deck and empty it.
-		_pocketCard = new Card();
-		_pocketCard.UpdateRankAndSuit(_currentlySelectedCard.m_rank, _currentlySelectedCard.m_suit, _currentlySelectedCard.m_SpritesheetBlitRect, _currentlySelectedCard.m_currentGridLocation, _currentlySelectedCard.m_isEmpty);
-		_pocketCard.m_PositionRect = GetPocketCardRectangle();
-		var _temp_location = new Vector2(_pocketCard.m_PositionRect.X, _pocketCard.m_PositionRect.Y);
-
-		_deck[indexOfCurrentlySelectedCard]
-			.UpdateRankAndSuit(99, null, BLACK_RECT, _temp_location, true);
-
-
-		return true;
-	}
-	
-	private bool HandlePocketCardClick()
-	{
-		//If pocket card is null or if we aren't clicking it, return false.
-		if (_pocketCard == null || !_pocketCard.m_PositionRect.Intersects(new Rectangle(Mouse.GetState().Position, Point.Zero)))
-		{
-			return false;
-		}
-		
-		//If we have a highlighted card, then we know we can place it there, so handle that.
-		if(_currentlyHighlightedCard != null)
-		{
-			_currentlyHighlightedCard.UpdateRankAndSuit(_pocketCard.m_rank, _pocketCard.m_suit, _pocketCard.m_SpritesheetBlitRect, _currentlyHighlightedCard.m_currentGridLocation, false);
-			_pocketCard = new Card();
-		}
-
-		return true;
-	}
 
 	private void HandleStrobe()
 	{
@@ -277,7 +229,6 @@ public class Game1 : Game
 	{
 		return new Rectangle(SCREEN_WIDTH * SCREEN_SCALE - 100, SCREEN_HEIGHT * SCREEN_SCALE - 300, Game1.CardWidth, Game1.CardHeight);
 	}
-	#endregion
 
 	#region Update/Draw
 	protected override void Update(GameTime gameTime)
@@ -289,21 +240,14 @@ public class Game1 : Game
 		HandleMouseHighlightingAndLogic();
 
 		//Check if mouse is pressed and if they are clicking the pocket slot. If they aren't, see if they are clicking a valid card.
-		if (IsMouseJustPressed() && !HandlePocketCardClick())
-		{
-			PlaceCorrectCardAtSelectedEmptySpot();
-		}
-
-		//If they right click a card, set it as the pocket card and set its slot to empty.
-		else if (IsMouseJustPressed(false))
-		{
-			PlaceCardInPocketSlot();
-		}
-
-		//Handle shuffle.
-		else if (IsMouseJustPressed() && (_shuffleButtonRectangle.Intersects(new Rectangle(Mouse.GetState().Position, Point.Zero))))
+		if (IsMouseJustPressed() && (_shuffleButtonRectangle.Intersects(new Rectangle(Mouse.GetState().Position, Point.Zero))))
 		{
 			DeckShuffler.Shuffle(_deck);
+		}
+
+		else if (IsMouseJustPressed())
+		{
+			PlaceCorrectCardAtSelectedEmptySpot();
 		}
 
 		// Exit Game
@@ -345,16 +289,6 @@ public class Game1 : Game
 			{
 				_spriteBatch.Draw(_deckSpriteSheet, card.m_PositionRect, card.m_SpritesheetBlitRect, Color.White);
 			}
-		}
-
-		//If pocket card is empty, draw black quad with count of pocket uses left in it.
-		if (_pocketCard != null)
-		{
-			_spriteBatch.Draw(_deckSpriteSheet, GetPocketCardRectangle(), _pocketCard.m_SpritesheetBlitRect, Color.White);
-		}
-		else
-		{
-			_spriteBatch.Draw(_deckSpriteSheet, GetPocketCardRectangle(), BLACK_RECT, Color.White);
 		}
 
 		_spriteBatch.Draw(_shuffleButton, _shuffleButtonRectangle, Color.White);
