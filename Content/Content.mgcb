@@ -31,12 +31,12 @@
 /processorParam:Quality=Best
 /build:flick.wav
 
-#begin Font.spritefont
+#begin font.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Font.spritefont
+/build:font.spritefont
 
 #begin shuffle.png
 /importer:TextureImporter
